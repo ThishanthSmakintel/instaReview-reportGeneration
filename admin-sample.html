@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard – Report Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #333; }
+
+    /* Layout */
+    .dashboard {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 240px;
+      background: #1f2d3d;
+      color: #fff;
+      padding: 20px;
+    }
+    .sidebar h2 {
+      margin-bottom: 30px;
+      font-size: 20px;
+      text-align: center;
+    }
+    .sidebar ul {
+      list-style: none;
+    }
+    .sidebar ul li {
+      margin: 15px 0;
+    }
+    .sidebar ul li a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      display: block;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .sidebar ul li a:hover {
+      background: #3c8dbc;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: #3c8dbc;
+      color: #fff;
+      padding: 15px 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    /* Content */
+    .content {
+      padding: 30px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    .card {
+      background: #fff;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    /* Inline Form */
+    .form-inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .form-inline .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .form-inline label {
+      font-weight: bold;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .form-inline input {
+      padding: 8px;
+      min-width: 220px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .form-inline button {
+      padding: 12px 20px;
+      background: #3c8dbc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      align-self: flex-start;
+    }
+    .form-inline button:hover {
+      background: #367fa9;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #result {
+      margin-top: 20px;
+    }
+    #htmlReport {
+      margin-top: 20px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <h2>Admin Panel</h2>
+      <ul>
+        <li><a href="#">Dashboard</a></li>
+        <li><a href="#">Reports</a></li>
+        <li><a href="#">Users</a></li>
+        <li><a href="#">Settings</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+      <div class="header">Report Generator</div>
+      <div class="content">
+        <div class="card">
+          <h1>Generate Report</h1>
+          <form id="reportForm" class="form-inline">
+            <div class="form-group">
+              <label for="companyId">Company ID:</label>
+              <input type="text" id="companyId" value="123456789A_123456_01-01_FNB" required>
+            </div>
+            <div class="form-group">
+              <label for="fromDate">From Date:</label>
+              <input type="datetime-local" id="fromDate" value="2025-09-02T11:12" required>
+            </div>
+            <div class="form-group">
+              <label for="toDate">To Date:</label>
+              <input type="datetime-local" id="toDate" value="2025-09-09T11:12" required>
+            </div>
+            <button type="submit" id="generateBtn">
+              <span id="generateSpinner" class="spinner" style="display: none;"></span>
+              <span id="generateText">Generate Report</span>
+            </button>
+            <button type="button" id="downloadBtn" style="background: #28a745; display: none;">
+              <span id="downloadSpinner" class="spinner" style="display: none;"></span>
+              <span id="downloadText">Download PDF</span>
+            </button>
+          </form>
+
+          <div id="result"></div>
+          <div id="htmlReport"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="http://localhost:5000/static/js/report-generator.js" 
+          data-company-id="123456789A_123456_01-01_FNB" 
+          data-from-date="2025-09-02T11:12" 
+          data-to-date="2025-09-09T11:12"></script>
+  <script>
+    const reportGenerator = new ReportGenerator();
+    const scriptTag = document.querySelector('script[src="http://localhost:5000/static/js/report-generator.js"]');
+
+    // Set form values from script data attributes
+    document.getElementById('companyId').value = scriptTag.dataset.companyId;
+    document.getElementById('fromDate').value = scriptTag.dataset.fromDate;
+    document.getElementById('toDate').value = scriptTag.dataset.toDate;
+
+    document.getElementById('reportForm').onsubmit = async (e) => {
+      e.preventDefault();
+
+      const companyId = document.getElementById('companyId').value;
+      const fromDate = document.getElementById('fromDate').value + ':00';
+      const toDate = document.getElementById('toDate').value + ':00';
+      const resultDiv = document.getElementById('result');
+      const reportDiv = document.getElementById('htmlReport');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const generateSpinner = document.getElementById('generateSpinner');
+      const generateText = document.getElementById('generateText');
+      const generateBtn = document.getElementById('generateBtn');
+
+      // Show spinner and disable button
+      generateSpinner.style.display = 'inline-block';
+      generateText.textContent = 'Processing...';
+      generateBtn.disabled = true;
+      resultDiv.innerHTML = '';
+      reportDiv.style.display = 'none';
+      downloadBtn.style.display = 'none';
+
+      try {
+        const result = await reportGenerator.generateReport(companyId, fromDate, toDate);
+
+        if (result.success) {
+          resultDiv.innerHTML = '';
+          reportDiv.innerHTML = result.htmlReport;
+          reportDiv.style.display = 'block';
+          downloadBtn.style.display = 'inline-block';
+        } else {
+          resultDiv.innerHTML = `<p style="color: red;">Error: ${result.error}</p>`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      } finally {
+        // Hide spinner and enable button
+        generateSpinner.style.display = 'none';
+        generateText.textContent = 'Generate Report';
+        generateBtn.disabled = false;
+      }
+    };
+
+    document.getElementById('downloadBtn').onclick = async () => {
+      const companyId = document.getElementById('companyId').value;
+      const fromDate = document.getElementById('fromDate').value + ':00';
+      const toDate = document.getElementById('toDate').value + ':00';
+      const spinner = document.getElementById('downloadSpinner');
+      const text = document.getElementById('downloadText');
+      
+      spinner.style.display = 'inline-block';
+      text.textContent = 'Processing...';
+      
+      try {
+        const response = await fetch('http://localhost:5000/reports/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId, from: fromDate.split('T')[0], to: toDate.split('T')[0] })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.downloadUrl) {
+            window.open(result.downloadUrl, '_blank');
+          } else {
+            alert('Download URL not available');
+          }
+        } else {
+          const error = await response.json();
+          alert('Failed to process PDF: ' + (error.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error processing PDF: ' + error.message);
+      } finally {
+        spinner.style.display = 'none';
+        text.textContent = 'Download PDF';
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Generated data files and folders
+data/
+output_data/
+logs/
+reports/
+
+# Generated PDF reports
+*.pdf
+
+# API response and processed data
+*.json
+
+# Python cache files
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
