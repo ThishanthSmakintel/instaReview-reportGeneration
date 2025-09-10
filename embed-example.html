@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Embedded Dashboard Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    .demo { max-width: 800px; margin: 0 auto; }
+    h1 { color: #333; margin-bottom: 20px; }
+    .code { background: #f8f9fa; padding: 16px; border-radius: 4px; font-family: monospace; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="demo">
+    <h1>🚀 Embeddable Analytics Dashboard</h1>
+    <p>Just add this single script tag to any website:</p>
+    
+    <div class="code">
+&lt;div id="my-dashboard"&gt;&lt;/div&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/chart.js"&gt;&lt;/script&gt;
+&lt;script src="http://localhost:5000/static/js/report-generator.js" 
+        data-container-id="my-dashboard"
+        data-company-id="123456789A_123456_01-01_FNB"
+        data-auto-refresh="true"
+        data-refresh-interval="60"&gt;&lt;/script&gt;
+    </div>
+
+    <h2>Live Demo:</h2>
+    <div id="my-dashboard"></div>
+  </div>
+
+  <!-- Embed the dashboard -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="http://localhost:5000/static/js/report-generator.js" 
+          data-container-id="my-dashboard"
+          data-company-id="123456789A_123456_01-01_FNB"
+          data-auto-refresh="true"
+          data-refresh-interval="30"></script>
+</body>
+</html>
