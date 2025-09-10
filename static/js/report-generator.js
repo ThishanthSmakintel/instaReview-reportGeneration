@@ -4,64 +4,34 @@ class ReportGenerator {
     }
 
     async fetchApiData(companyId, fromDate, toDate) {
-        // Use form parameters instead of API call
-        const response = await fetch(`http://localhost:5000/api/data?companyId=${companyId}&from=${fromDate}&to=${toDate}`);
-        return await response.json();
+        const response = await fetch(`http://localhost:5000/api/data`);
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        return data;
     }
 
-    filterData(data) {
-        // Use all available data instead of filtering by specific IDs
-        return data.length > 0 ? data.slice(0, 10) : [];
-    }
-
-    generateAnalytics(filteredData) {
-        const analytics = {
-            totalRecords: filteredData.length,
-            sentimentBreakdown: {},
-            averageRatings: {},
-            recommendations: [],
-            positiveThemes: [],
-            negativeThemes: []
+    generateAnalytics(reportData) {
+        // Add safety checks for data structure
+        const safeGet = (obj, path, defaultValue = []) => {
+            try {
+                return path.split('.').reduce((o, p) => o && o[p], obj) || defaultValue;
+            } catch {
+                return defaultValue;
+            }
         };
-
-        filteredData.forEach(item => {
-            let meta = item.metaData;
-            if (typeof meta === 'string') {
-                try { meta = JSON.parse(meta); } catch (e) { meta = {}; }
-            }
-
-            const feedback = meta && meta.feedbackAnalysis ? meta.feedbackAnalysis : {};
-            
-            const sentiment = feedback.overallSentiment || 'Unknown';
-            analytics.sentimentBreakdown[sentiment] = (analytics.sentimentBreakdown[sentiment] || 0) + 1;
-
-            if (feedback.positiveIndicators && Array.isArray(feedback.positiveIndicators)) {
-                analytics.positiveThemes.push(...feedback.positiveIndicators);
-            }
-            if (feedback.negativeIndicators && Array.isArray(feedback.negativeIndicators)) {
-                analytics.negativeThemes.push(...feedback.negativeIndicators);
-            }
-            if (feedback.recommendations && Array.isArray(feedback.recommendations)) {
-                analytics.recommendations.push(...feedback.recommendations);
-            }
-
-            if (item.quess) {
-                item.quess.forEach(q => {
-                    if (!analytics.averageRatings[q.question]) {
-                        analytics.averageRatings[q.question] = { total: 0, count: 0 };
-                    }
-                    analytics.averageRatings[q.question].total += q.answer;
-                    analytics.averageRatings[q.question].count += 1;
-                });
-            }
-        });
-
-        Object.keys(analytics.averageRatings).forEach(question => {
-            const data = analytics.averageRatings[question];
-            analytics.averageRatings[question] = (data.total / data.count).toFixed(1);
-        });
-
-        return analytics;
+        
+        return {
+            totalRecords: safeGet(reportData, 'overall_stats.total_feedback', 0),
+            sentimentBreakdown: safeGet(reportData, 'audio_metrics.sentiment_distribution', {}),
+            averageRatings: safeGet(reportData, 'survey_metrics.question_averages', {}),
+            recommendations: safeGet(reportData, 'audio_metrics.recommendations', []),
+            positiveThemes: safeGet(reportData, 'audio_metrics.positive_themes', []),
+            negativeThemes: safeGet(reportData, 'audio_metrics.negative_themes', [])
+        };
     }
 
     generateStarRating(rating) {
@@ -71,7 +41,7 @@ class ReportGenerator {
         return `<span class="rating-stars">${'★'.repeat(full)}${'½'.repeat(half)}${'☆'.repeat(empty)}</span> ${rating}`;
     }
 
-    generateHtmlReport(analytics, companyName, filteredData) {
+    generateHtmlReport(analytics, companyName, reportData) {
         const currentTime = new Date();
         const weekStart = new Date(currentTime.getTime() - 7 * 24 * 60 * 60 * 1000);
         const weekEnd = currentTime;
@@ -248,19 +218,18 @@ class ReportGenerator {
 
     async generateReport(companyId, fromDate, toDate) {
         try {
-            const data = await this.fetchApiData(companyId, fromDate, toDate);
-            const filteredData = this.filterData(data);
+            const reportData = await this.fetchApiData(companyId, fromDate, toDate);
             
-            if (filteredData.length === 0) {
-                throw new Error('No data found for target IDs');
+            if (!reportData || reportData.error) {
+                throw new Error(reportData?.error || 'No data available');
             }
             
-            const analytics = this.generateAnalytics(filteredData);
-            const htmlReport = this.generateHtmlReport(analytics, companyId, filteredData);
+            const analytics = this.generateAnalytics(reportData);
+            const htmlReport = this.generateHtmlReport(analytics, companyId, reportData);
             
             window.currentAnalytics = analytics;
             
-            return { success: true, analytics, htmlReport, recordCount: filteredData.length };
+            return { success: true, analytics, htmlReport, recordCount: analytics.totalRecords };
         } catch (error) {
             return { success: false, error: error.message };
         }

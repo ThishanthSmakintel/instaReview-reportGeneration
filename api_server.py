@@ -223,10 +223,19 @@ def static_files(filename):
 @app.route('/api/data')
 def get_api_data():
     try:
-        os.environ['COMPANY_ID'] = '123456789A_123456_01-01_FNB'
-        api_data = fetch_api_data()
-        return jsonify(api_data)
+        # Read the same analytics file that PDF uses
+        import glob
+        analytics_files = glob.glob('data/analytics_summary_*.json')
+        if not analytics_files:
+            return jsonify({'error': 'No analytics data found'}), 404
+        
+        latest_file = max(analytics_files, key=os.path.getctime)
+        with open(latest_file, 'r') as f:
+            report_data = json.load(f)
+        
+        return jsonify(report_data)
     except Exception as e:
+        print(f"API Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/')
