@@ -24,9 +24,8 @@ else:
 # --- Data Fetching Functions ---
 def fetch_company_details():
     try:
-        logger.info("Fetching company details from API...")
         company_id = os.getenv('COMPANY_ID')
-        api_key = os.getenv('API_KEY')
+        api_key = os.getenv('X_API_KEY_COMPANY_DETAILS_URL')
         base_url = os.getenv('COMPANY_DETAILS_URL')
         url = f"{base_url}?companyId={company_id}"
         headers = {"x-api-key": api_key}
@@ -35,10 +34,9 @@ def fetch_company_details():
             data = response.json()
             logger.info(f"Company details fetched successfully")
             return data
-        else:
-            logger.error(f"Company details API request failed with status {response.status_code}")
+        print(f"Company details API request failed with status {response.status_code}")
     except Exception as e:
-        logger.error(f"Error fetching company details: {e}")
+        print(f"Error fetching company details: {e}")
     return None
 
 def fetch_api_data():
