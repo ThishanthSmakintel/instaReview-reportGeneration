@@ -10,12 +10,28 @@ import PyPDF2
 import os
 import requests
 import json
+import boto3
 from logger import setup_logger, create_categorical_folders
 from fetch_customer_data import fetch_company_details, process_customer_data
 
 # Setup logging
 logger, timestamp = setup_logger()
 folders = create_categorical_folders()
+
+def upload_to_s3(file_path, company_id, week_num):
+    """Upload file to S3 using boto3 profile"""
+    try:
+        session = boto3.Session(profile_name=os.getenv('AWS_PROFILE', 'default'))
+        s3_client = session.client('s3', region_name=os.getenv('AWS_REGION'))
+        bucket = os.getenv('AWS_S3_BUCKET')
+        s3_key = f"instareview-reports/{company_id}/w{week_num}.pdf"
+        
+        s3_client.upload_file(file_path, bucket, s3_key)
+        logger.info(f"Uploaded {file_path} to s3://{bucket}/{s3_key}")
+        return True
+    except Exception as e:
+        logger.error(f"S3 upload failed: {e}")
+        return False
 
 # --- Get Current Time for Timestamps ---
 current_time = datetime.datetime.now()
@@ -595,6 +611,15 @@ async def generate_pdf():
         )
         await browser.close()
         logger.info(f"Company weekly analytics report generated: {pdf_path}")
+        
+        # Upload to S3
+        if filtered_data:
+            company_id = filtered_data[0].get("companyId", "unknown")
+            week_num = current_time.isocalendar()[1]  # Get ISO week number
+            if upload_to_s3(pdf_path, company_id, week_num):
+                print(f"Report uploaded to S3 successfully!")
+            else:
+                print(f"S3 upload failed, but PDF saved locally")
         
         print(f"Company Weekly Analytics Report generated successfully!")
         print(f"Report saved to: {pdf_path}")

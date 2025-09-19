@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Simple script to generate InstaReview report using dummy data
-"""
-
 import asyncio
 import sys
 import os
