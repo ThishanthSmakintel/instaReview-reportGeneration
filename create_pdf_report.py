@@ -11,12 +11,19 @@ import os
 import requests
 import json
 import boto3
+from dotenv import load_dotenv
 from logger import setup_logger, create_categorical_folders
 from fetch_customer_data import fetch_company_details, process_customer_data
+
+# Load environment variables
+load_dotenv()
 
 # Setup logging
 logger, timestamp = setup_logger()
 folders = create_categorical_folders()
+
+# Get company ID from environment
+COMPANY_ID = os.getenv('COMPANY_ID')
 
 def upload_to_s3(file_path, company_id, week_num):
     """Upload file to S3 using boto3 profile"""
@@ -596,8 +603,9 @@ async def generate_pdf():
         await page.set_content(html_content, wait_until="networkidle")
         logger.info("HTML content loaded successfully")
 
-        # Save to timestamped reports folder
-        pdf_filename = f"Company_Weekly_Analytics_{timestamp}.pdf"
+        # Save to timestamped reports folder with company ID
+        company_id = os.getenv('COMPANY_ID', 'unknown')
+        pdf_filename = f"Company_Weekly_Analytics_{company_id}_{timestamp}.pdf"
         pdf_path = os.path.join(folders['reports'], pdf_filename)
 
         await page.pdf(
@@ -613,13 +621,12 @@ async def generate_pdf():
         logger.info(f"Company weekly analytics report generated: {pdf_path}")
         
         # Upload to S3
-        if filtered_data:
-            company_id = filtered_data[0].get("companyId", "unknown")
-            week_num = current_time.isocalendar()[1]  # Get ISO week number
-            if upload_to_s3(pdf_path, company_id, week_num):
-                print(f"Report uploaded to S3 successfully!")
-            else:
-                print(f"S3 upload failed, but PDF saved locally")
+        company_id = os.getenv('COMPANY_ID', 'unknown')
+        week_num = current_time.isocalendar()[1]  # Get ISO week number
+        if upload_to_s3(pdf_path, company_id, week_num):
+            print(f"Report uploaded to S3 successfully!")
+        else:
+            print(f"S3 upload failed, but PDF saved locally")
         
         print(f"Company Weekly Analytics Report generated successfully!")
         print(f"Report saved to: {pdf_path}")
