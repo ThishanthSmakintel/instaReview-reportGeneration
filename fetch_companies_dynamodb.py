@@ -8,7 +8,10 @@ from logger import setup_logger
 load_dotenv()
 
 # Setup logging
-logger, _ = setup_logger()
+import logging
+logger = logging.getLogger('InstaReview')
+if not logger.handlers:
+    logger, _ = setup_logger()
 
 def get_all_companies():
     """Fetch all company details from DynamoDB sorted by dateUpdated"""

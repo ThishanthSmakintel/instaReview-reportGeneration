@@ -7,14 +7,13 @@ from logger import setup_logger, create_categorical_folders
 # Load environment variables
 load_dotenv()
 
-# Setup logging only when run directly
+# Setup logging
 if __name__ == "__main__":
     logger, timestamp = setup_logger()
     folders = create_categorical_folders()
 else:
-    # Use existing logger when imported
     import logging
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger('InstaReview')
     from datetime import datetime
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     folders = {'data': 'data', 'reports': 'reports', 'logs': 'logs'}
