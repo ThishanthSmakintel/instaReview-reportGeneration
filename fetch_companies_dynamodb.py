@@ -11,7 +11,7 @@ load_dotenv()
 logger, _ = setup_logger()
 
 def get_all_companies():
-    """Fetch all company details from DynamoDB"""
+    """Fetch all company details from DynamoDB sorted by dateUpdated"""
     try:
         session = boto3.Session(profile_name=os.getenv('AWS_PROFILE', 'default'))
         dynamodb = session.resource('dynamodb', region_name=os.getenv('AWS_REGION'))
@@ -26,6 +26,9 @@ def get_all_companies():
         while 'LastEvaluatedKey' in response:
             response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             companies.extend(response['Items'])
+        
+        # Sort by dateUpdated (most recent first)
+        companies.sort(key=lambda x: x.get('dateUpdated', ''), reverse=True)
         
         logger.info(f"Retrieved {len(companies)} companies from DynamoDB")
         return companies
@@ -56,7 +59,17 @@ def get_company_by_id(company_id):
         logger.error(f"Failed to fetch company {company_id} from DynamoDB: {e}")
         return None
 
-if __name__ == "__main__":
+def get_companies_by_ids(company_ids):
+    """Fetch multiple companies by IDs from DynamoDB"""
+    companies = []
+    for company_id in company_ids:
+        company = get_company_by_id(company_id)
+        if company:
+            companies.append(company)
+    return companies
+
+def list_companies():
+    """List and save companies to file"""
     companies = get_all_companies()
     if companies:
         print(f"Found {len(companies)} companies:")
@@ -69,3 +82,6 @@ if __name__ == "__main__":
         print(f"All companies saved to companies_list.json")
     else:
         print("No companies found or error occurred")
+
+if __name__ == "__main__":
+    list_companies()

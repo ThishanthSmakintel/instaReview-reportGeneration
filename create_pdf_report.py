@@ -181,102 +181,117 @@ def get_logo_base64():
 
 logo_b64 = get_logo_base64()
 
-# --- Generate report data from API sources ---
-logger.info("Processing real customer feedback data from API...")
-# Check if filtered data exists from API call
-if os.path.exists('output_data/customer_feedback.json'):
-    with open('output_data/customer_feedback.json', 'r') as f:
-        filtered_data = json.load(f)
-    logger.info(f"Using filtered data from API: {len(filtered_data)} records")
-else:
-    # Fallback to process_customer_data if no filtered data
-    filtered_data = process_customer_data()
-    logger.info(f"Using all data from process_customer_data: {len(filtered_data)} records")
+# Global variables for data - will be initialized when needed
+filtered_data = None
+report_data = None
+client_data = None
 
-if not filtered_data:
-    logger.error("No customer feedback data available")
-    exit(1)
+def initialize_report_data():
+    """Initialize report data for current company"""
+    global filtered_data, report_data, client_data
+    
+    logger.info("Processing real customer feedback data from API...")
+    # Check if filtered data exists from API call
+    if os.path.exists('output_data/customer_feedback.json'):
+        with open('output_data/customer_feedback.json', 'r') as f:
+            filtered_data = json.load(f)
+        logger.info(f"Using filtered data from API: {len(filtered_data)} records")
+    else:
+        # Fallback to process_customer_data if no filtered data
+        filtered_data = process_customer_data()
+        logger.info(f"Using all data from process_customer_data: {len(filtered_data)} records")
 
-logger.info("Generating customer feedback report analytics...")
-report_data = generate_report_data(filtered_data)
-logger.info("Customer feedback analytics generated successfully")
+    if not filtered_data:
+        logger.error("No customer feedback data available")
+        return False
 
-# --- Build client data from real processed data ---
-# Fetch company details
-company_details = fetch_company_details()
-company_name = "Unknown Company"
-company_city = "Unknown"
-company_industry = "Unknown"
+    logger.info("Generating customer feedback report analytics...")
+    report_data = generate_report_data(filtered_data)
+    logger.info("Customer feedback analytics generated successfully")
+    
+    # Initialize client data
+    initialize_client_data()
+    return True
 
-if company_details:
-    company_name = company_details.get("companyName", "Unknown Company")
-    company_city = company_details.get("city", "Unknown")
-    company_industry = company_details.get("industry", "Unknown")
-    logger.info(f"Using company details: {company_name} in {company_city}, {company_industry}")
-else:
-    # Fallback to companyId if API fails
-    if filtered_data and len(filtered_data) > 0:
-        company_name = filtered_data[0].get("companyId", "Unknown Company")
-    logger.warning("Using fallback company name from companyId")
+def initialize_client_data():
+    """Initialize client data for current company"""
+    global client_data, filtered_data, report_data
+    
+    # Fetch company details
+    company_details = fetch_company_details()
+    company_name = "Unknown Company"
+    company_city = "Unknown"
+    company_industry = "Unknown"
 
-# Calculate report period from form dates or current date
-from_date_env = os.getenv('REPORT_FROM_DATE')
-to_date_env = os.getenv('REPORT_TO_DATE')
+    if company_details:
+        company_name = company_details.get("companyName", "Unknown Company")
+        company_city = company_details.get("city", "Unknown")
+        company_industry = company_details.get("industry", "Unknown")
+        logger.info(f"Using company details: {company_name} in {company_city}, {company_industry}")
+    else:
+        # Fallback to companyId if API fails
+        if filtered_data and len(filtered_data) > 0:
+            company_name = filtered_data[0].get("companyId", "Unknown Company")
+        logger.warning("Using fallback company name from companyId")
 
-if from_date_env and to_date_env:
-    from datetime import datetime as dt
-    week_start = dt.fromisoformat(from_date_env.replace('Z', '')).date()
-    week_end = dt.fromisoformat(to_date_env.replace('Z', '')).date()
-else:
-    today = current_time.date()
-    week_start = today - datetime.timedelta(days=today.weekday())
-    week_end = week_start + datetime.timedelta(days=6)
+    # Calculate report period from form dates or current date
+    from_date_env = os.getenv('REPORT_FROM_DATE')
+    to_date_env = os.getenv('REPORT_TO_DATE')
 
-client_data = {
-    "company_name": company_name,
-    "company_city": company_city,
-    "company_industry": company_industry,
-    "report_period_start": week_start,
-    "report_period_end": week_end,
-    "date_generated": current_time.date(),
-    "generation_timestamp": current_time.strftime('%B %d, %Y at %I:%M:%S %p'),
-    "total_reviews": report_data["overall_stats"]["total_feedback"],
-    "positive_reviews": int(report_data["overall_stats"]["total_feedback"] * report_data["overall_stats"]["positive_percentage"] / 100),
-    "neutral_reviews": int(report_data["overall_stats"]["total_feedback"] * report_data["overall_stats"]["neutral_percentage"] / 100),
-    "negative_reviews": int(report_data["overall_stats"]["total_feedback"] * report_data["overall_stats"]["negative_percentage"] / 100),
-    "avg_feedback_duration": "1.8 min",
-    "nps_score": max(10, min(100, 50 + (report_data["overall_stats"]["positive_percentage"] - report_data["overall_stats"]["negative_percentage"]))),
-    "top_questions": list(report_data["survey_metrics"]["question_averages"].items()),
-    "channels": {
-        "Survey": round((report_data["survey_metrics"]["total_responses"] / report_data["overall_stats"]["total_feedback"]) * 100) if report_data["overall_stats"]["total_feedback"] > 0 else 0,
-        "Audio Feedback": round((report_data["audio_metrics"]["total_feedback"] / report_data["overall_stats"]["total_feedback"]) * 100) if report_data["overall_stats"]["total_feedback"] > 0 else 0
-    },
-    "positive_themes": report_data["audio_metrics"]["positive_themes"],
-    "negative_themes": report_data["audio_metrics"]["negative_themes"],
-    "notable_quotes": report_data["audio_metrics"]["sample_transcripts"],
-    "recommendation": ". ".join(report_data["audio_metrics"]["recommendations"]).replace("; ", ". ").replace(";", ""),
-    "sentiment_trend_data": {
-        "labels": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
-        "values": [report_data["overall_stats"]["positive_percentage"], 
-                   report_data["overall_stats"]["positive_percentage"] + 5,
-                   report_data["overall_stats"]["positive_percentage"] - 3,
-                   report_data["overall_stats"]["positive_percentage"] + 8,
-                   report_data["overall_stats"]["positive_percentage"] + 2,
-                   report_data["overall_stats"]["positive_percentage"] + 10,
-                   report_data["overall_stats"]["positive_percentage"] + 6]
-    },
-    "star_ratings_data": {
-        "labels": ["5 ★", "4 ★", "3 ★", "2 ★", "1 ★"],
-        "values": [
-            report_data["overall_stats"]["positive_percentage"],
-            max(0, 100 - report_data["overall_stats"]["positive_percentage"] - report_data["overall_stats"]["neutral_percentage"] - report_data["overall_stats"]["negative_percentage"]),
-            report_data["overall_stats"]["neutral_percentage"],
-            max(0, report_data["overall_stats"]["negative_percentage"] // 2),
-            max(0, report_data["overall_stats"]["negative_percentage"] - (report_data["overall_stats"]["negative_percentage"] // 2))
-        ],
-        "average": round(sum([avg for _, avg in report_data["survey_metrics"]["question_averages"].items()]) / len(report_data["survey_metrics"]["question_averages"]), 1) if report_data["survey_metrics"]["question_averages"] else 0
+    if from_date_env and to_date_env:
+        from datetime import datetime as dt
+        week_start = dt.fromisoformat(from_date_env.replace('Z', '')).date()
+        week_end = dt.fromisoformat(to_date_env.replace('Z', '')).date()
+    else:
+        today = current_time.date()
+        week_start = today - datetime.timedelta(days=today.weekday())
+        week_end = week_start + datetime.timedelta(days=6)
+
+    client_data = {
+        "company_name": company_name,
+        "company_city": company_city,
+        "company_industry": company_industry,
+        "report_period_start": week_start,
+        "report_period_end": week_end,
+        "date_generated": current_time.date(),
+        "generation_timestamp": current_time.strftime('%B %d, %Y at %I:%M:%S %p'),
+        "total_reviews": report_data["overall_stats"]["total_feedback"],
+        "positive_reviews": int(report_data["overall_stats"]["total_feedback"] * report_data["overall_stats"]["positive_percentage"] / 100),
+        "neutral_reviews": int(report_data["overall_stats"]["total_feedback"] * report_data["overall_stats"]["neutral_percentage"] / 100),
+        "negative_reviews": int(report_data["overall_stats"]["total_feedback"] * report_data["overall_stats"]["negative_percentage"] / 100),
+        "avg_feedback_duration": "1.8 min",
+        "nps_score": max(10, min(100, 50 + (report_data["overall_stats"]["positive_percentage"] - report_data["overall_stats"]["negative_percentage"]))),
+        "top_questions": list(report_data["survey_metrics"]["question_averages"].items()),
+        "channels": {
+            "Survey": round((report_data["survey_metrics"]["total_responses"] / report_data["overall_stats"]["total_feedback"]) * 100) if report_data["overall_stats"]["total_feedback"] > 0 else 0,
+            "Audio Feedback": round((report_data["audio_metrics"]["total_feedback"] / report_data["overall_stats"]["total_feedback"]) * 100) if report_data["overall_stats"]["total_feedback"] > 0 else 0
+        },
+        "positive_themes": report_data["audio_metrics"]["positive_themes"],
+        "negative_themes": report_data["audio_metrics"]["negative_themes"],
+        "notable_quotes": report_data["audio_metrics"]["sample_transcripts"],
+        "recommendation": ". ".join(report_data["audio_metrics"]["recommendations"]).replace("; ", ". ").replace(";", ""),
+        "sentiment_trend_data": {
+            "labels": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"],
+            "values": [report_data["overall_stats"]["positive_percentage"], 
+                       report_data["overall_stats"]["positive_percentage"] + 5,
+                       report_data["overall_stats"]["positive_percentage"] - 3,
+                       report_data["overall_stats"]["positive_percentage"] + 8,
+                       report_data["overall_stats"]["positive_percentage"] + 2,
+                       report_data["overall_stats"]["positive_percentage"] + 10,
+                       report_data["overall_stats"]["positive_percentage"] + 6]
+        },
+        "star_ratings_data": {
+            "labels": ["5 ★", "4 ★", "3 ★", "2 ★", "1 ★"],
+            "values": [
+                report_data["overall_stats"]["positive_percentage"],
+                max(0, 100 - report_data["overall_stats"]["positive_percentage"] - report_data["overall_stats"]["neutral_percentage"] - report_data["overall_stats"]["negative_percentage"]),
+                report_data["overall_stats"]["neutral_percentage"],
+                max(0, report_data["overall_stats"]["negative_percentage"] // 2),
+                max(0, report_data["overall_stats"]["negative_percentage"] - (report_data["overall_stats"]["negative_percentage"] // 2))
+            ],
+            "average": round(sum([avg for _, avg in report_data["survey_metrics"]["question_averages"].items()]) / len(report_data["survey_metrics"]["question_averages"]), 1) if report_data["survey_metrics"]["question_averages"] else 0
+        }
     }
-}
 
 # --- Star Rating HTML Generator ---
 def generate_star_rating(rating):
@@ -341,13 +356,19 @@ def create_nps_trend_chart():
     buf = BytesIO(); plt.savefig(buf, format='png', bbox_inches='tight', dpi=150, facecolor='white'); buf.seek(0)
     img_b64 = base64.b64encode(buf.read()).decode(); plt.close(); return img_b64
 
-trend_chart = create_sentiment_trend_chart()
-star_chart = create_star_ratings_chart()
-channel_chart = create_channel_pie_chart()
-nps_chart = create_nps_trend_chart()
+def generate_charts():
+    """Generate all charts for the report"""
+    global client_data
+    trend_chart = create_sentiment_trend_chart()
+    star_chart = create_star_ratings_chart()
+    channel_chart = create_channel_pie_chart()
+    nps_chart = create_nps_trend_chart()
+    return trend_chart, star_chart, channel_chart, nps_chart
 
-# --- PDF Header and Footer Templates ---
-header_template = f"""
+def generate_header_template():
+    """Generate PDF header template"""
+    global client_data
+    return f"""
 <div style="width: 100%; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); padding: 15px 20mm; box-sizing: border-box; border-bottom: 3px solid #3b82f6; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -365,7 +386,11 @@ header_template = f"""
     </div>
 </div>
 """
-footer_template = f"""
+
+def generate_footer_template():
+    """Generate PDF footer template"""
+    global client_data
+    return f"""
 <div style="width: 100%; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; padding: 12px 20mm; box-sizing: border-box; border-top: 3px solid #3b82f6;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -380,8 +405,10 @@ footer_template = f"""
 </div>
 """
 
-# --- HTML Template ---
-html_content = f"""
+def generate_html_content(trend_chart, star_chart, channel_chart, nps_chart):
+    """Generate HTML content for the report"""
+    global client_data, report_data
+    return f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -596,6 +623,23 @@ def remove_blank_pages(input_path):
     return output_path
 
 async def generate_pdf():
+    global client_data, report_data
+    
+    # Initialize data if not already done
+    if not initialize_report_data():
+        raise Exception("Failed to initialize report data")
+    
+    # Generate charts and HTML content
+    trend_chart = create_sentiment_trend_chart()
+    star_chart = create_star_ratings_chart()
+    channel_chart = create_channel_pie_chart()
+    nps_chart = create_nps_trend_chart()
+    
+    # Generate templates
+    header_template = generate_header_template()
+    footer_template = generate_footer_template()
+    html_content = generate_html_content(trend_chart, star_chart, channel_chart, nps_chart)
+    
     logger.info("Starting customer feedback PDF report generation...")
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -621,7 +665,6 @@ async def generate_pdf():
         logger.info(f"Company weekly analytics report generated: {pdf_path}")
         
         # Upload to S3
-        company_id = os.getenv('COMPANY_ID', 'unknown')
         week_num = current_time.isocalendar()[1]  # Get ISO week number
         if upload_to_s3(pdf_path, company_id, week_num):
             print(f"Report uploaded to S3 successfully!")
@@ -637,6 +680,11 @@ async def main():
     """Main function for automated report generation"""
     try:
         logger.info("Starting automated company weekly analytics report generation")
+        
+        # Set a default company ID if not set
+        if not os.getenv('COMPANY_ID'):
+            os.environ['COMPANY_ID'] = 'default'
+            
         pdf_path = await generate_pdf()
         logger.info(f"Company weekly analytics report generation completed successfully: {pdf_path}")
         print(f"SUCCESS: Company Weekly Analytics Report generated at {pdf_path}")
