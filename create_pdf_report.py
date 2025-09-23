@@ -32,10 +32,10 @@ def upload_to_s3(file_path, company_id, week_num):
         s3_client = session.client('s3', region_name=os.getenv('AWS_REGION'))
         bucket = os.getenv('AWS_S3_BUCKET')
         
-        # Generate file name as YYYY/MM/W#.pdf
+        # Generate file name as YYYY-MM-W#.pdf
         year = current_time.year
         month = current_time.month
-        filename = f"{year:04d}/{month:02d}/W{week_num}.pdf"
+        filename = f"{year:04d}-{month:02d}-W{week_num}.pdf"
         s3_key = f"instareview-reports/{company_id}/{filename}"
         
         s3_client.upload_file(file_path, bucket, s3_key)
