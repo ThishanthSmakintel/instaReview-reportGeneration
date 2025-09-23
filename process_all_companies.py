@@ -41,7 +41,10 @@ async def process_company_report(company_id):
         
         # Upload to S3
         week_num = datetime.now().isocalendar()[1]
-        s3_key = f"instareview-reports/{company_id}/w{week_num}.pdf"
+        year = datetime.now().year
+        month = datetime.now().month
+        filename = f"{year:04d}/{month:02d}/W{week_num}.pdf"
+        s3_key = f"instareview-reports/{company_id}/{filename}"
         
         if upload_to_s3(pdf_path, company_id, week_num):
             logger.info(f"Report uploaded to S3 for company {company_id}")
