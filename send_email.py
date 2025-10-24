@@ -217,25 +217,25 @@ def send_reports_for_companies(companies_with_reports):
         if send_report_email(company_data, s3_key, company_email):
             success_count += 1
             sent_companies.append(f"{company_name} ({company_email})")
-            logger.info(f"✅ Report email sent successfully to {company_name} ({company_email})")
+            logger.info(f"Report email sent successfully to {company_name} ({company_email})")
         else:
             failed_companies.append(f"{company_name} ({company_email})")
-            logger.error(f"❌ Failed to send report email to {company_name} ({company_email})")
+            logger.error(f"Failed to send report email to {company_name} ({company_email})")
     
     # Summary logging
-    logger.info(f"📧 EMAIL DELIVERY SUMMARY:")
+    logger.info(f"EMAIL DELIVERY SUMMARY:")
     logger.info(f"Total companies with reports: {total_count}")
     logger.info(f"Emails sent successfully: {success_count}")
     logger.info(f"Email delivery failures: {len(failed_companies)}")
     logger.info(f"Companies without email: {len(no_email_companies)}")
     
     if sent_companies:
-        logger.info(f"✅ EMAILS SENT TO: {', '.join(sent_companies)}")
+        logger.info(f"EMAILS SENT TO: {', '.join(sent_companies)}")
     
     if failed_companies:
-        logger.error(f"❌ FAILED TO SEND EMAILS TO: {', '.join(failed_companies)}")
+        logger.error(f"FAILED TO SEND EMAILS TO: {', '.join(failed_companies)}")
     
     if no_email_companies:
-        logger.warning(f"⚠️ NO EMAIL ADDRESS FOR: {', '.join(no_email_companies)}")
+        logger.warning(f"NO EMAIL ADDRESS FOR: {', '.join(no_email_companies)}")
     
     return success_count, total_count
